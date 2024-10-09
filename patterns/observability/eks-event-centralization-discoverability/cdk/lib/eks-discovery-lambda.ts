@@ -1,14 +1,16 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { CrossAccountStack } from './cross-account-stack';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
-export class CdkStack extends cdk.Stack {
+/**
+ * Deploy Lambda that performs discovery of EKS clusters across the AWS Organization
+ */
+export class EKSDiscoveryLambda extends cdk.Stack {
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-   
+
     // EKS Discovery Lambda function
     const eksDiscoveryLambda = new lambda.Function (this, 'eks-discovery-lambda', {
       description: 'Porfolio lambda function',
@@ -57,35 +59,10 @@ export class CdkStack extends cdk.Stack {
       resources: ['*'] // can be tightened to just the lambda execution role name arn:aws:iam::role/eks-discovery-role' in any account
     }))
    
-    /**
-     * Stackset section
-     */
-
-    const crossAccountApp = new cdk.App();
-    const crossAccountStack = new CrossAccountStack(crossAccountApp, 'CrossAccountStack');
-    const assembly = crossAccountApp.synth().getStackByName(crossAccountStack.stackName);
-    const crossAccountCfnTemplate = assembly.template;
-
-
-    // Stackset to setup cross account role for Lambda 
-    const cfnStackSet = new cdk.CfnStackSet(this, 'eks-discovery-stackset', {
-      stackSetName: 'eks-discovery-stackset',
-      templateBody: JSON.stringify(crossAccountCfnTemplate),
-      permissionModel: 'SERVICE_MANAGED',
-      capabilities: ['CAPABILITY_NAMED_IAM'],
-      callAs: 'DELEGATED_ADMIN',
-      autoDeployment: {
-        enabled: true,
-        retainStacksOnAccountRemoval: false
-      },
-      stackInstancesGroup:  [
-        {
-          deploymentTargets: {
-            organizationalUnitIds: ['r-0ble']
-          },
-          regions: [this.region]
-        }
-      ]
+    // Output the Lambda function Arn for use in the cross account stackset
+    new cdk.CfnOutput(this, 'eksDiscoveryLambdaArn', {
+      exportName: 'eksDiscoveryLambdaArn',
+      value: eksDiscoveryLambda.functionArn
     })
 
   }

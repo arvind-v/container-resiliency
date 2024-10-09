@@ -1,14 +1,18 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { SharedProps } from './props';
+import { StackSetStack } from 'cdk-stacksets';
 
-export class CrossAccountStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, props);
+/**
+ * Cross account role to be deployed across the AWS Organization
+ */
+export class CrossAccountRole extends StackSetStack {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+    const lambdaArn = cdk.Fn.importValue("eksDiscoveryLambdaArn");
    
     const crossAccountRole = new iam.Role(this, 'cross-account-role', {
-      assumedBy: new iam.ArnPrincipal(`arn:aws:iam::${this.account}:role/my-lambda-execution-role`),
+      assumedBy: new iam.ArnPrincipal(lambdaArn),
       roleName: 'eks-discovery-role'
     });
 
@@ -16,8 +20,5 @@ export class CrossAccountStack extends cdk.Stack {
       actions: ['eks:ListCluster', 'eks:DescribeCluster', 'eks:ListTagsForResource'],
       resources: ['*'],
     }))
-  
-
-
   }
 }
